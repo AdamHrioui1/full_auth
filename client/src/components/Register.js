@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 import { useNavigate } from 'react-router-dom'
+import FacebookAuth from './Social/FacebookAuth'
+import GoogleAuth from './Social/GoogleAuth'
 
 function Register() {
   let navigate = useNavigate()
@@ -72,6 +74,11 @@ function Register() {
           <input type="submit" value='Register' />
         </div>      
       </form>
+
+      <div className="socials">
+        <GoogleAuth />
+        <FacebookAuth />
+      </div>
     </div>
   )
 }

@@ -3,6 +3,11 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const sendMail = require('./sendMail');
 const { isEmail } = require('validator');
+const { google } = require('googleapis');
+const { OAuth2 } = google.auth
+const fetch = require('node-fetch');
+
+const client = new OAuth2(process.env.MAILING_SERVICE_CLIENT_ID)
 
 const userCtrl = {
     register: async (req, res) => {
@@ -137,6 +142,101 @@ const userCtrl = {
         try {
             res.clearCookie('refreshtoken', { path: '/user/refreshtoken' })
             return res.json({ msg: 'Logged out successfully!' })
+        } catch (err) {
+            return res.status(500).json({ msg: err.message })
+        }
+    },
+    googleLogin: async (req, res) => {
+        try {
+            const { tokenId } = req.body
+            
+            const verify = await client.verifyIdToken({
+                idToken: tokenId,
+                audience: process.env.MAILING_SERVICE_CLIENT_ID
+            })
+
+            const { email_verified, name, email, picture } = verify.payload
+
+            if(!email_verified) return res.status(400).json({ msg: 'Email not found!' })
+
+            const password = email + process.env.GOOGLE_SECRET
+            const salt = 12
+            const hashedPassword = await bcrypt.hash(password, salt)
+
+            const user = await User.findOne({ email })
+            if(user) {
+                const isMatch = await bcrypt.compare(password, user.password)
+                if(!isMatch) return res.status(400).json({ msg: 'Incorrect password!' })
+
+                const refreshtoken = createRefreshToken({ id: user._id })
+                res.cookie('refreshtoken', refreshtoken, {
+                    httpOnly: true,
+                    path: '/user/refreshtoken',
+                    maxAge: 1000*60*60*24*7
+                })
+
+                return res.status(200).json({ msg: 'Login successfully!' })
+            } else {
+                const newUser = new User({
+                    name, email, password: hashedPassword, picture
+                })
+
+                await newUser.save()
+
+                const refreshtoken = createRefreshToken({ id: newUser._id })
+                res.cookie('refreshtoken', refreshtoken, {
+                    httpOnly: true,
+                    path: '/user/refreshtoken',
+                    maxAge: 1000*60*60*24*7
+                })
+
+                return res.status(200).json({ msg: 'Login successfully!' })
+            }
+        } catch (err) {
+            return res.status(500).json({ msg: err.message })
+        }
+    },
+    facebookLogin: async (req, res) => {
+        try {
+            const {  accessToken, userID } = req.body
+            // https://developers.facebook.com/docs/graph-api/overview
+            const URL = `https://graph.facebook.com/v4.0/${userID}/?fields=id,name,email,picture&access_token=${accessToken}`
+
+            const data = await fetch(URL).then(res => res.json()).then(res => { return res })
+            const { name, email, picture } = data
+
+            const password = email + process.env.FACEBOOK_SECRET
+            const salt = 12
+            const hashedPassword = await bcrypt.hash(password, salt)
+
+            const user = await User.findOne({ email })
+            if(user) {
+                const isMatch = await bcrypt.compare(password, user.password)
+                if(!isMatch) return res.status(400).json({ msg: 'Incorrect password!' })
+
+                const refreshtoken = createRefreshToken({ id: user._id })
+                res.cookie('refreshtoken', refreshtoken, {
+                    httpOnly: true,
+                    path: '/user/refreshtoken',
+                    maxAge: 1000*60*60*24*7
+                })
+
+                return res.status(200).json({ msg: 'Login successfully!' })
+            } else {
+                const newUser = new User({
+                    name, email, password: hashedPassword, picture: picture.data.url
+                })
+                await newUser.save()
+
+                const refreshtoken = createRefreshToken({ id: newUser._id })
+                res.cookie('refreshtoken', refreshtoken, {
+                    httpOnly: true,
+                    path: '/user/refreshtoken',
+                    maxAge: 1000*60*60*24*7
+                })
+
+                return res.status(200).json({ msg: 'Login successfully!' })
+            }
         } catch (err) {
             return res.status(500).json({ msg: err.message })
         }

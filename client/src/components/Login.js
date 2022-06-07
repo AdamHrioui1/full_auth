@@ -1,6 +1,8 @@
 import React, { useState } from 'react'
 import axios from 'axios'
 import { Link, useNavigate } from 'react-router-dom'
+import GoogleAuth from './Social/GoogleAuth'
+import FacebookAuth from './Social/FacebookAuth'
 
 function Login() {
   let navigate = useNavigate()
@@ -29,6 +31,7 @@ function Login() {
         email, password
       })
       navigate('/')
+      localStorage.setItem('firstlogin', true)
 
     } catch (err) {
       var error2 = {
@@ -66,6 +69,11 @@ function Login() {
           <input type="submit" value='Login' />
         </div>      
       </form>
+
+      <div className="socials">
+        <GoogleAuth />
+        <FacebookAuth />
+      </div>
     </div>
   )
 }

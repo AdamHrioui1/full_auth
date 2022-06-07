@@ -9,5 +9,7 @@ router.get('/refreshtoken', userCtrl.getAccessToken)
 router.post('/forgot', userCtrl.forgotPassword)
 router.post('/reset', auth, userCtrl.resetPassword)
 router.get('/logout', userCtrl.logout)
+router.post('/google_login', userCtrl.googleLogin)
+router.post('/facebook_login', userCtrl.facebookLogin)
 
 module.exports = router
